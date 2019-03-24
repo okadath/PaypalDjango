@@ -29,9 +29,12 @@ PAYPAL_TEST = True
 
 ```
 Y migrar, ya se puede probar
+
 ```
 python manage.py migrate
 ```
+![list items](https://raw.githubusercontent.com/okadath/PaypalDjango/master/items.png)
+
 Modificar el `urls.py`:
 ```python
 urlpatterns = [
@@ -67,10 +70,10 @@ def process_payment(request):
     form = PayPalPaymentsForm(initial=paypal_dict)
     return render(request, 'ecommerce_app/process_payment.html', {'order': order, 'form': form})
 ```
+Estos atributos son requeridos por la API de Paypal:
+![variables](https://raw.githubusercontent.com/okadath/PaypalDjango/master/var.png)
 
-para llamar a la API de paypal
-
-Luego para permitir el manejo a traves de su pasarela por si algo sale mal agregamos al archivo 
+Luego para permitir el manejo a traves de su pasarela por si algo sale mal agregamos al archivo  `views.py`, ademas de que le agregaremos el decorador `csrf_exempt` por que usaremos POST de otra pagina web:
 
 ```python
 from django.views.decorators.csrf import csrf_exempt 
@@ -82,7 +85,7 @@ def payment_done(request):
 def payment_canceled(request):
     return render(request, 'ecommerce_app/payment_cancelled.html')
 ```
-El checkout del proyecto estaba asi:
+El checkout del proyecto estaba asi en `views.py`:
 ```python
 def checkout(request):
     if request.method == 'POST':
@@ -162,6 +165,7 @@ Despues creamos sus vistas en `ecommerce_app/templates/blog`:
     <p>Payment cancelled.</p>
 {% endblock %}
 ```
+![return](https://raw.githubusercontent.com/okadath/PaypalDjango/master/return.png)
 
 Agregar al `ecommerce_app/urls.py`:
 ```python
@@ -169,16 +173,27 @@ Agregar al `ecommerce_app/urls.py`:
 	path('payment-done/', views.payment_done, name='payment_done'),
 	path('payment-cancelled/', views.payment_canceled, name='payment_cancelled'),
 ```
+![pay item](https://raw.githubusercontent.com/okadath/PaypalDjango/master/buy.png)
+
 ## Remoto
 Crear en developers.paypal.com 2 cuentas (casi siempre vienen por default) para manejar pagos
+![paypal developers](https://raw.githubusercontent.com/okadath/PaypalDjango/master/p_sand.png)
 
  comprador: vintaw.01-buyer@gmail.com
 
-Despues de esto ya funciona, solo hace falta setear la informacion para que el IPN acceda al server desde internet, en el tutorial usan NGROK para crear una IP fija en local, yo levantare una instancia temporal de AWS o Codenvy para que sea mas realista
+Despues de esto ya funciona, solo hace falta setear la informacion para que el IPN acceda al server desde internet,sin esto no se actualiza la informacion acerca de si ya se llevo a cabo la transaccion o no
+![no updated](https://raw.githubusercontent.com/okadath/PaypalDjango/master/ipnno.png)
+
+En el tutorial usan NGROK para crear una IP fija en local, yo levantare una instancia temporal de AWS o Codenvy para que sea mas realista
+
+![codenvy](https://raw.githubusercontent.com/okadath/PaypalDjango/master/codenvy.png)
 
 Ya subido en codenvy con sus configuraciones es posible que la API de paypal registre si las operaciones se llevaron a cabo o no por medio del IPN por lo cual ya podemos verificar nosostros si las transacciones se llevaron a cabo o no en la tabla de orders
+![updated ipn via web](https://raw.githubusercontent.com/okadath/PaypalDjango/master/ipn.png)
 
-AL CREARLAS POR DEFAULT LAS PONE EN FALSE Y YA PAGADAS CAMBIA A TRUE ese es el workflow de las eshops
+AL CREARLAS POR DEFAULT LAS PONE EN FALSE Y YA PAGADAS CAMBIA A TRUE ese es el workflow de las e-shops pero aun no lo hace
+
+![article no paid](https://raw.githubusercontent.com/okadath/PaypalDjango/master/listnopay.png)
 
 Para ello django tiene dos señales 
 + valid_ipn_received
@@ -206,7 +221,7 @@ def payment_notification(sender, **kwargs):
             order.save()
 ```
 
-cuando se manda una señal de `valid_ipn_received` signal se llama a la funcion `payment_notification()` con elobjeto PayPalIPN como enviador
+Cuando se manda una señal de `valid_ipn_received` signal se llama a la funcion `payment_notification()` con elobjeto PayPalIPN como enviador
 `ipn = sender` lo asigna
 verificamos en el if si se completo la transaccion 
 si es asi comparamos el costo a pagar con el de la tansaccion(para evitar pagar 1$ por algo de 100$ via `order.total_cost() == ipn.mc_gross`) 
@@ -229,6 +244,9 @@ Para que django acceda a PaymentConfig agregar en `simple_ecommerce/django_proje
 default_app_config = 'ecommerce_app.apps.EcommerceAppConfig'
 ```
 y ya procesa transacciones
+![paypal paid](https://raw.githubusercontent.com/okadath/PaypalDjango/master/payart.png)
+
+![article paid](https://raw.githubusercontent.com/okadath/PaypalDjango/master/listpay.png)
 
 ### Passing Custom Parameter ( Pass-through variables)
 Son datos temporales en el flujo de la aplicacion que paypal no almacena
@@ -247,7 +265,7 @@ para pasarle `custom`
 'notify_url': 'http://{}{}'.format(host, reverse('paypal-ipn')),
 ...
 ```
-
+![passing variables](https://raw.githubusercontent.com/okadath/PaypalDjango/master/pass_var.png)
 Si necesitasemos pasar muchos valores los pasamos en un array con un delimitador
 ```bash
 >>> l = ["one", "two", "three"] # custom parameters to pass to PayPal
@@ -259,4 +277,7 @@ Si necesitasemos pasar muchos valores los pasamos en un array con un delimitador
 ['one', 'two', 'three']
 ```
 
+TODO:
++ ojo!! elimine el quantize por errores al parsear el dato, no se si asi corra bien con centavos, aun lo tengo que probar!
 
+![error decimales](https://raw.githubusercontent.com/okadath/PaypalDjango/master/dec.png)
