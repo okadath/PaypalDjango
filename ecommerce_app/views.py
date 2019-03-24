@@ -97,6 +97,7 @@ def process_payment(request):
         'item_name': 'Order {}'.format(order.id),
         'invoice': str(order.id),
         'currency_code': 'USD',
+        'custom': 'a custom value',
         'notify_url': 'http://{}{}'.format(host,
                                            reverse('paypal-ipn')),
         'return_url': 'http://{}{}'.format(host,

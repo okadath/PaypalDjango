@@ -5,7 +5,10 @@ pip install django-paypal
 ```
 en codenvy use python3.5 con pytz-2018.9 y Django==2.1.0
  que tiene errores de seguridad! 
-
+ correr en codenvy sin errores de ip 
+ ```bash
+ python manage.py runserver 0.0.0.0:8000
+ ```
 
 editar el `settings.py`, IPN==Instant Payment Notification
 
@@ -242,7 +245,33 @@ default_app_config = 'ecommerce_app.apps.EcommerceAppConfig'
 ```
 y ya procesa transacciones
 
+Passing Custom Parameter ( Pass-through variables)
+son datos temporales en el flujo de la aplicacion que paypal no almacena
 
++ custom
++ item_number
++ invoice
 
+actualizamos el `paypal_dict` en la funcion `process_payment()` en `ecommerce_app/views.py` 
+para pasarle `custom`
+
+```python
+...
+'currency_code': 'USD',
+'custom': 'a custom value',
+'notify_url': 'http://{}{}'.format(host, reverse('paypal-ipn')),
+...
+```
+
+si necesitasemos pasar muchos valores los pasamos en un array con un delimitador
+```bash
+ l = ["one", "two", "three"] # custom parameters to pass to PayPal
+>>> packed_data = str.join("|", l)
+>>> packed_data
+'one|two|three'
+>>> unpacked_data = packed_data.split("|")
+>>> unpacked_data
+['one', 'two', 'three']
+```
 
 
