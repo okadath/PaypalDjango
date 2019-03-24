@@ -3,6 +3,9 @@ virtualenv venv --python=python3.6
 pip  install -r requirements.txt 
 pip install django-paypal
 ```
+en codenvy use python3.5 con pytz-2018.9 y Django==2.1.0
+ que tiene errores de seguridad! 
+
 
 editar el `settings.py`, IPN==Instant Payment Notification
 
@@ -176,10 +179,68 @@ crear en developers.paypal.com 2 cuentas (casi siempre vienen por default) para 
 despues de esto ya funciona, solo hace falta setear la informacion para que el IPN acceda al server desde internet, en el tutorial usan ngrok para crear una IP fija, yo levantare una instancia temporal de AWS para que sea mas realista
 
 
+ya subido en codenvy con sus configuraciones es posible que la API de paypal registre si als operaciones se llevaron
+a cabo o no por medio del IPN por lo cual ya podemos verificar nosostros si las transacciones se llevaron a cabo o no en la tBLA DE ORDERS
+
+AL CREARLAS POR DEFAULT LAS PONE EN FALSE Y YA PAGADAS LAS PONE EN TRUE ese es el workflow de las eshops
+
+para ello django tiene dos se;ales 
++ valid_ipn_received
++ invalid_ipn_received
+
+asi que debemos de crear un archivo que las maneje en `ecommerce_app/signals.py`
+
+```python
+from django.shortcuts import get_object_or_404
+from .models import Order
+from paypal.standard.ipn.signals import valid_ipn_received
+from django.dispatch import receiver
+ 
+ 
+@receiver(valid_ipn_received)
+def payment_notification(sender, **kwargs):
+    ipn = sender
+    if ipn.payment_status == 'Completed':
+        # payment was successful
+        order = get_object_or_404(Order, id=ipn.invoice)
+ 
+        if order.total_cost() == ipn.mc_gross:
+            # mark the order as paid
+            order.paid = True
+            order.save()
+```
 
 
+When valid_ipn_received signal is sent, payment_notification() function is called 
+with the PayPalIPN object as a sender.
+In line 1, we assign the PayPalIPN object to the ipn variable.
+In line 2, we check whether the payment_status attribute is equal to 'Completed'.
+ If it is, we fetch the Order object and compare the total cost of the order 
+ (via get_total_cost()) with the transaction amount ( i.e mc_gross). 
+ This comparison is necessary, because it keeps someone from trying to pay $1 
+ for an order of $100. If the comparison succeeds we mark the product paid by setting 
+ order.paid=True.
 
 
+no hemos registrado el manejador de la se;al en `ecommerce_app/apps.py`:
+```python
+from django.apps import AppConfig
+class EcommerceAppConfig(AppConfig):
+    name = 'ecommerce_app'
+    def ready(self):
+        # import signal handlers
+        import ecommerce_app.signals
+```
+
+To inform Django about the existence of PaymentConfig add the following line in
+` __init__.py` file:
+
+`simple_ecommerce/django_project/ecommerce_app/__init__.py`:
+
+```python
+default_app_config = 'ecommerce_app.apps.EcommerceAppConfig'
+```
+y ya procesa transacciones
 
 
 
